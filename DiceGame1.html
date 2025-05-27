@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake and Ladder Game</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; font-family: Arial, sans-serif; }
+    canvas { border: 2px solid black; }
+    #rollButton { margin-top: 10px; padding: 10px 20px; font-size: 16px; cursor: pointer; }
+    #gameStatus { margin-top: 10px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <div id="gameStatus">Player 1's turn: Roll a 6 to start!</div>
+  <button id="rollButton" onclick="rollDice()">Roll Dice</button>
+  <script>
+    let boardSize = 10;
+    let tileSize = 50;
+    let playerPositions = [0, 0]; // Player 1 and Player 2 start at 0 (off board)
+    let currentPlayer = 0; // 0 for Player 1, 1 for Player 2
+    let diceResult = 0;
+    let gameOver = false;
+    let playerStarted = [false, false]; // Tracks if players have entered the board
+
+    // Define snakes and ladders (key: position, value: new position)
+    let snakesAndLadders = {
+      16: 6,   // Snake: 16 -> 6
+      47: 26,  // Snake: 47 -> 26
+      49: 11,  // Snake: 49 -> 11
+      56: 53,  // Snake: 56 -> 53
+      62: 19,  // Snake: 62 -> 19
+      87: 24,  // Snake: 87 -> 24
+      4: 14,   // Ladder: 4 -> 14
+      9: 31,   // Ladder: 9 -> 31
+      20: 38,  // Ladder: 20 -> 38
+      28: 84,  // Ladder: 28 -> 84
+      40: 59,  // Ladder: 40 -> 59
+      63: 81   // Ladder: 63 -> 81
+    };
+
+    function setup() {
+      createCanvas(boardSize * tileSize + 100, boardSize * tileSize);
+      textAlign(CENTER, CENTER);
+      textSize(20);
+    }
+
+    function draw() {
+      background(255);
+      // Draw board
+      for (let row = 0; row < boardSize; row++) {
+        for (let col = 0; col < boardSize; col++) {
+          let pos = row * boardSize + col + 1;
+          if ((row + col) % 2 == 0) {
+            fill(200, 255, 200); // Light green
+          } else {
+            fill(255, 255, 255); // White
+          }
+          let x = col * tileSize;
+          let y = (boardSize - 1 - row) * tileSize;
+          rect(x, y, tileSize, tileSize);
+          fill(0);
+          text(pos, x + tileSize / 2, y + tileSize / 2);
+        }
+      }
+
+      // Draw snakes (red lines)
+      stroke(255, 0, 0);
+      strokeWeight(3);
+      for (let start in snakesAndLadders) {
+        if (snakesAndLadders[start] < start) {
+          let startPos = getCoordinates(Number(start));
+          let endPos = getCoordinates(snakesAndLadders[start]);
+          line(startPos.x + tileSize / 2, startPos.y + tileSize / 2,
+               endPos.x + tileSize / 2, endPos.y + tileSize / 2);
+        }
+      }
+
+      // Draw ladders (green lines)
+      stroke(0, 255, 0);
+      for (let start in snakesAndLadders) {
+        if (snakesAndLadders[start] > start) {
+          let startPos = getCoordinates(Number(start));
+          let endPos = getCoordinates(snakesAndLadders[start]);
+          line(startPos.x + tileSize / 2, startPos.y + tileSize / 2,
+               endPos.x + tileSize / 2, endPos.y + tileSize / 2);
+        }
+      }
+      stroke(0);
+      strokeWeight(1);
+
+      // Draw players
+      if (playerPositions[0] > 0) {
+        let pos1 = getCoordinates(playerPositions[0]);
+        fill(255, 0, 0); // Red for Player 1
+        ellipse(pos1.x + tileSize / 4, pos1.y + tileSize / 4, tileSize / 3);
+      }
+      if (playerPositions[1] > 0) {
+        let pos2 = getCoordinates(playerPositions[1]);
+        fill(0, 0, 255); // Blue for Player 2
+        ellipse(pos2.x + 3 * tileSize / 4, pos2.y + 3 * tileSize / 4, tileSize / 3);
+      }
+
+      // Draw dice
+      fill(255);
+      rect(boardSize * tileSize, 0, 100, 100);
+      fill(0);
+      textSize(40);
+      text(diceResult || "?", boardSize * tileSize + 50, 50);
+    }
+
+    function getCoordinates(pos) {
+      let row = Math.floor((pos - 1) / boardSize);
+      let col = (pos - 1) % boardSize;
+      if (row % 2 == 1) col = boardSize - 1 - col; // Reverse direction for odd rows
+      return { x: col * tileSize, y: (boardSize - 1 - row) * tileSize };
+    }
+
+    function rollDice() {
+      if (gameOver) return;
+      diceResult = floor(random(1, 7)); // Random number 1 to 6
+      let status = document.getElementById("gameStatus");
+      let playerName = currentPlayer === 0 ? "Player 1" : "Player 2";
+
+      if (!playerStarted[currentPlayer] && diceResult === 6) {
+        playerStarted[currentPlayer] = true;
+        playerPositions[currentPlayer] = 1;
+        status.innerHTML = `${playerName} rolled a 6 and entered the board! ${currentPlayer === 0 ? "Player 2" : "Player 1"}'s turn.`;
+        currentPlayer = 1 - currentPlayer; // Switch player
+      } else if (!playerStarted[currentPlayer]) {
+        status.innerHTML = `${playerName} rolled a ${diceResult}. Need a 6 to start! ${currentPlayer === 0 ? "Player 2" : "Player 1"}'s turn.`;
+        currentPlayer = 1 - currentPlayer;
+      } else {
+        playerPositions[currentPlayer] += diceResult;
+        if (playerPositions[currentPlayer] > 100) {
+          playerPositions[currentPlayer] = 100; // Cap at 100
+        }
+        // Check for snakes or ladders
+        if (snakesAndLadders[playerPositions[currentPlayer]]) {
+          let newPos = snakesAndLadders[playerPositions[currentPlayer]];
+          let type = newPos < playerPositions[currentPlayer] ? "snake" : "ladder";
+          playerPositions[currentPlayer] = newPos;
+          status.innerHTML = `${playerName} rolled a ${diceResult}, landed on a ${type} to ${newPos}! `;
+        } else {
+          status.innerHTML = `${playerName} rolled a ${diceResult}, moved to ${playerPositions[currentPlayer]}. `;
+        }
+
+        // Check win condition
+        if (playerPositions[currentPlayer] >= 100) {
+          status.innerHTML = `${playerName} wins!`;
+          gameOver = true;
+          document.getElementById("rollButton").disabled = true;
+        } else {
+          status.innerHTML += `${currentPlayer === 0 ? "Player 2" : "Player 1"}'s turn.`;
+          currentPlayer = 1 - currentPlayer;
+        }
+      }
+    }
+  </script>
+</body>
+</html>
